@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Satan | Config</title>
+    <title>Satan</title>
     <style>
         :root { --accent: #eee; --bg: #000; --panel: #000; --border: #222; --text-dim: #aaa; }
         * { box-sizing: border-box; font-family: 'JetBrains Mono', monospace; }
@@ -37,28 +37,53 @@
         </div>
     </main>
     <script>
+        // Încarcă token-urile salvate în Neon.tech prin Render
         async function load() {
-            const res = await fetch('/get_tokens');
-            const tks = await res.json();
-            localStorage.setItem('v_tks', JSON.stringify(tks));
-            document.getElementById('tokenTable').innerHTML = tks.map(t => `
-                <div class="token-item">
-                    <span>${t.name.toUpperCase()}</span>
-                    <button class="wipe-btn" onclick="del('${t.name}')">Delete</button>
-                </div>`).join('');
+            try {
+                const res = await fetch('/get_tokens');
+                const tks = await res.json();
+                localStorage.setItem('v_tks', JSON.stringify(tks));
+                document.getElementById('tokenTable').innerHTML = tks.map(t => `
+                    <div class="token-item">
+                        <span>${t.name.toUpperCase()}</span>
+                        <button class="wipe-btn" onclick="del('${t.name}')">Delete</button>
+                    </div>`).join('');
+            } catch(e) { console.error("Sync failed"); }
         }
+
+        // Validează și salvează token-ul în baza de date persistentă
         async function add() {
             const val = document.getElementById('tk').value;
             const alias = document.getElementById('alias').value;
-            const check = await fetch('/validate_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token: val}) });
+            
+            // Verifică token-ul direct prin API-ul Discord
+            const check = await fetch('/validate_token', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({token: val}) 
+            });
+            
             const d = await check.json();
             if(d.valid) {
-                await fetch('/save_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: alias || d.user, val: val}) });
+                await fetch('/save_token', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({name: alias || d.user, val: val}) 
+                });
+                document.getElementById('tk').value = "";
+                document.getElementById('alias').value = "";
                 load();
             } else alert("Invalid Token");
         }
+
+        // Șterge token-ul din tabelul user_tokens de pe Neon
         async function del(n) {
-            await fetch('/delete_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: n}) });
+            if(!confirm("DELETE TOKEN?")) return;
+            await fetch('/delete_token', { 
+                method: 'POST', 
+                headers: {'Content-Type': 'application/json'}, 
+                body: JSON.stringify({name: n}) 
+            });
             load();
         }
         window.onload = load;
