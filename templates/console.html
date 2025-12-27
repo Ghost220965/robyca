@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Satan | Console</title>
+    <style>
+        :root { --accent: #eeeeee; --bg: #000000; --panel: #030303; --border: #1a1a1a; --text-dim: #555555; }
+        * { box-sizing: border-box; font-family: 'JetBrains Mono', monospace; transition: all 0.2s ease; }
+        body { background: var(--bg); color: var(--accent); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 260px; background: #000; border-right: 1px solid var(--border); padding: 50px 30px; display: flex; flex-direction: column; }
+        .logo { font-size: 24px; font-weight: 900; letter-spacing: 15px; text-align: center; margin-bottom: 60px; color: var(--accent); }
+        .nav-link { color: var(--text-dim); text-decoration: none; padding: 12px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 3px; border-bottom: 1px solid transparent; }
+        .nav-link.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; justify-content: center; gap: 20px; overflow-y: auto; }
+        .module-card { background: var(--panel); border: 1px solid var(--border); padding: 30px; width: 100%; max-width: 900px; margin: 0 auto; }
+        .config-grid { display: grid; grid-template-columns: repeat(4, 1fr) 80px; gap: 12px; margin-bottom: 20px; }
+        label { font-size: 8px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 8px; display: block; letter-spacing: 1px; }
+        input, select, textarea { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--accent); padding: 12px; outline: none; font-size: 12px; }
+        textarea { height: 350px; border-left: 2px solid var(--accent); line-height: 1.6; resize: none; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px; background: transparent; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; font-size: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .tab.active { border-color: var(--accent); color: var(--accent); background: rgba(255,255,255,0.02); }
+        .queue-info { margin-top: 15px; padding: 10px; border: 1px dashed var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+        .processing { color: var(--accent) !important; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">SATAN</div>
+        <a href="/config" class="nav-link">Config</a>
+        <a href="/console" class="nav-link active">Console</a>
+        <a href="/autotyper" class="nav-link">Autotyper</a>
+    </aside>
+
+    <main class="main">
+        <div class="module-card">
+            <div class="tabs">
+                <button class="tab active" id="mNormal" onclick="setMode('normal')">Delay</button>
+                <button class="tab" id="mShift" onclick="setMode('shift')">Shift Enter</button>
+            </div>
+            <div class="config-grid">
+                <div><label>Token</label><select id="selTk"></select></div>
+                <div><label>Channel</label><input type="text" id="chId" placeholder="ID"></div>
+                <div><label>Target</label><input type="text" id="userTag" placeholder="Victim"></div>
+                <div><label>End Message</label><input type="text" id="endMsg" placeholder="message.."></div>
+                <div><label>Delay</label><input type="number" id="delay" value="1500"></div>
+            </div>
+            <textarea id="msg" placeholder="message.."></textarea>
+            <div class="queue-info">
+                <span>Status: <span id="qStatus">Idle</span></span>
+                <span>Queue: <span id="qCount">0</span></span>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let tks = JSON.parse(localStorage.getItem('v_tks') || "[]");
+        let currentMode = 'normal';
+        let msgQueue = [];
+        let isProcessing = false;
+
+        window.onload = () => {
+            document.getElementById('selTk').innerHTML = tks.map((t,i) => `<option value="${i}">${t.name.toUpperCase()}</option>`).join('');
+            document.getElementById('msg').focus();
+        };
+
+        function setMode(m) {
+            currentMode = m;
+            document.getElementById('mNormal').classList.toggle('active', m === 'normal');
+            document.getElementById('mShift').classList.toggle('active', m === 'shift');
+        }
+
+        function addToQueue() {
+            const content = document.getElementById('msg').value.trim();
+            const channel = document.getElementById('chId').value.trim();
+            const tagId = document.getElementById('userTag').value.trim();
+            const endTxt = document.getElementById('endMsg').value.trim();
+            const tkIndex = document.getElementById('selTk').value;
+            const tk = tks[tkIndex];
+
+            if(!content || !channel || !tk) return;
+
+            let finalContent = tagId ? `<@${tagId}> ${content}` : content;
+            if(endTxt) finalContent += ` ${endTxt}`;
+
+            msgQueue.push({ token: tk.val, channel: channel, payload: finalContent });
+            document.getElementById('msg').value = "";
+            updateQueueUI();
+            if(!isProcessing) processQueue();
+        }
+
+        async function processQueue() {
+            if(msgQueue.length === 0) {
+                isProcessing = false; updateQueueUI(); return;
+            }
+            isProcessing = true; updateQueueUI();
+            const task = msgQueue[0];
+            const delayTime = parseInt(document.getElementById('delay').value) || 1500;
+
+            try {
+                await fetch('/send', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ token: task.token, channel_id: task.channel, content: task.payload })
+                });
+            } catch(e) {}
+
+            msgQueue.shift();
+            setTimeout(processQueue, delayTime);
+        }
+
+        function updateQueueUI() {
+            document.getElementById('qCount').innerText = msgQueue.length;
+            const status = document.getElementById('qStatus');
+            status.innerText = isProcessing ? "Processing..." : "Idle";
+            status.className = isProcessing ? "processing" : "";
+        }
+
+        window.onkeydown = (e) => {
+            if(document.activeElement.id === 'msg' && e.key === 'Enter') {
+                if ((currentMode === 'normal' && !e.shiftKey) || (currentMode === 'shift' && e.shiftKey)) {
+                    e.preventDefault(); addToQueue();
+                }
+            }
+        };
+    </script>
+</body>
+</html>
