@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Satan | Autotyper</title>
+    <style>
+        :root { --accent: #eee; --bg: #000; --panel: #030303; --border: #1a1a1a; --err: #ff3333; }
+        * { box-sizing: border-box; font-family: 'JetBrains Mono', monospace; }
+        body { background: var(--bg); color: var(--accent); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 260px; border-right: 1px solid var(--border); padding: 50px 30px; display: flex; flex-direction: column; }
+        .logo { font-size: 24px; font-weight: 900; letter-spacing: 15px; text-align: center; margin-bottom: 60px; text-transform: uppercase; color: #fff; }
+        .nav-link { color: #555; text-decoration: none; padding: 12px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 3px; border-bottom: 1px solid transparent; transition: 0.2s; }
+        .nav-link.active { color: var(--accent); border-bottom: 1px solid var(--accent); }
+        .main { flex: 1; padding: 40px; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        .module-card { background: var(--panel); border: 1px solid var(--border); padding: 30px; width: 100%; max-width: 1000px; margin: 0 auto; }
+        .config-grid { display: grid; grid-template-columns: repeat(4, 1fr) repeat(2, 0.6fr); gap: 12px; margin-bottom: 20px; align-items: end; }
+        label { font-size: 8px; color: #555; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        select, input { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--accent); padding: 10px; font-size: 11px; outline: none; }
+        .tabs { display: flex; gap: 10px; }
+        .tab { flex: 1; padding: 12px; background: transparent; border: 1px solid var(--border); color: #555; cursor: pointer; font-size: 10px; text-transform: uppercase; }
+        .tab.active { border-color: var(--accent); color: var(--accent); }
+        textarea { width: 100%; height: 220px; background: transparent; border: 1px solid var(--border); color: var(--accent); padding: 12px; font-size: 11px; display: none; margin-top: 10px; resize: none; border-left: 2px solid var(--accent); }
+        textarea.active { display: block; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
+        .btn { padding: 18px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px; font-size: 11px; cursor: pointer; border: none; transition: 0.3s; }
+        .btn-start { background: var(--accent); color: #000; }
+        .btn-stop { background: transparent; color: var(--err); border: 1px solid var(--err); }
+        .status-bar { font-size: 9px; text-transform: uppercase; text-align: center; margin-top: 25px; display: flex; justify-content: center; gap: 30px; color: #555; letter-spacing: 2px; border-top: 1px solid var(--border); padding-top: 20px; }
+        .status-val { color: #eee; font-weight: bold; margin-left: 5px; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">SATAN</div>
+        <a href="/config" class="nav-link">Config</a>
+        <a href="/console" class="nav-link">Console</a>
+        <a href="/autotyper" class="nav-link active">Autotyper</a>
+        <a href="/settings" class="nav-link">Settings</a>
+        <a href="#" class="nav-link" onclick="logout()" style="margin-top: auto; color: var(--err);">Logout</a>
+    </aside>
+    <main class="main">
+        <div class="module-card">
+            <div class="config-grid">
+                <div><label>Node</label><select id="selTk"></select></div>
+                <div><label>Channel</label><input type="text" id="chId"></div>
+                <div><label>Target</label><input type="text" id="userTag" placeholder="Optional"></div>
+                <div><label>Wait (ms)</label><input type="number" id="delay" value="1500"></div>
+                <div style="background:#050505; padding:10px; border:1px solid var(--border); height:41px; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="loopCheck"><label style="margin:0; font-size:8px;">Loop</label></div>
+                <div style="background:#050505; padding:10px; border:1px solid var(--border); height:41px; display:flex; align-items:center; gap:8px;"><input type="checkbox" id="typeCheck"><label style="margin:0; font-size:8px;">Typing</label></div>
+            </div>
+            <div class="tabs">
+                <button class="tab active" id="bN" onclick="setM('normal')">Delay Mode View</button>
+                <button class="tab" id="bS" onclick="setM('shift')">Shift Mode View</button>
+            </div>
+            <textarea id="msgNormal" class="active" placeholder="Type normal payload..."></textarea>
+            <textarea id="msgShift" placeholder="Type shift payload (double enter)..."></textarea>
+            <div class="controls">
+                <button class="btn btn-start" id="startBtn" onclick="start()">Initiate Cloud</button>
+                <button class="btn btn-stop" id="stopBtn" onclick="stop()" disabled>Terminate</button>
+            </div>
+            <div class="status-bar">
+                <span>Status: <span id="sysStatus" class="status-val">Ready</span></span>
+                <span>Uptime: <span id="uptime" class="status-val">00:00:00</span></span>
+            </div>
+        </div>
+    </main>
+    <script>
+        let tks = [], mode = 'normal', startTime = null;
+
+        async function sync() {
+            try {
+                // Preluam token-urile din DB pentru utilizatorul logat
+                const rTk = await fetch('/get_tokens'); 
+                tks = await rTk.json();
+                document.getElementById('selTk').innerHTML = tks.map((t,i)=>`<option value="${i}">${t.name.toUpperCase()}</option>`).join('');
+                
+                // Preluam starea autotyper-ului
+                const rCf = await fetch('/get_autotyper'); 
+                const s = await rCf.json();
+                if(s) {
+                    document.getElementById('msgNormal').value = s.payload || "";
+                    document.getElementById('msgShift').value = s.payload_shift || "";
+                    document.getElementById('chId').value = s.channel_id || "";
+                    document.getElementById('userTag').value = s.target_id || "";
+                    document.getElementById('delay').value = s.delay_ms || 1500;
+                    document.getElementById('loopCheck').checked = s.is_loop;
+                    document.getElementById('typeCheck').checked = s.is_typing;
+                    if(s.is_running) { 
+                        startTime = s.start_time * 1000; 
+                        uiRun(true); 
+                    }
+                }
+            } catch(e) {
+                console.error("Sync error:", e);
+            }
+        }
+
+        function setM(m) {
+            mode = m; 
+            document.getElementById('bN').classList.toggle('active', m==='normal');
+            document.getElementById('bS').classList.toggle('active', m==='shift');
+            document.getElementById('msgNormal').classList.toggle('active', m==='normal');
+            document.getElementById('msgShift').classList.toggle('active', m==='shift');
+        }
+
+        function uiRun(r) { 
+            document.getElementById('startBtn').disabled = r; 
+            document.getElementById('stopBtn').disabled = !r; 
+            document.getElementById('sysStatus').innerText = r ? "Active" : "Ready"; 
+        }
+
+        async function start() {
+            const txtNormal = document.getElementById('msgNormal').value;
+            const txtShift = document.getElementById('msgShift').value;
+            const activeTxt = mode === 'normal' ? txtNormal : txtShift;
+            
+            // Logica de split mesaje
+            const msgs = mode === 'normal' 
+                ? activeTxt.split("\n").filter(p=>p.trim().length>0) 
+                : activeTxt.split(/\n\s*\n/).filter(p=>p.trim().length>0);
+
+            if(msgs.length === 0) return alert("Payload empty");
+
+            // Salvam starea inainte de pornire
+            await fetch('/save_autotyper', { 
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body: JSON.stringify({
+                    payload: txtNormal, 
+                    payload_shift: txtShift, 
+                    channel_id: document.getElementById('chId').value, 
+                    target_id: document.getElementById('userTag').value, 
+                    delay: document.getElementById('delay').value, 
+                    loop: document.getElementById('loopCheck').checked, 
+                    typing: document.getElementById('typeCheck').checked
+                })
+            });
+
+            // Pornim worker-ul in Cloud
+            const tkIndex = document.getElementById('selTk').value;
+            if(!tks[tkIndex]) return alert("No Node selected");
+
+            const res = await fetch('/start_cloud', { 
+                method:'POST', 
+                headers:{'Content-Type':'application/json'}, 
+                body: JSON.stringify({
+                    token: tks[tkIndex].val, 
+                    channel_id: document.getElementById('chId').value,
+                    messages: msgs, 
+                    delay: document.getElementById('delay').value, 
+                    loop: document.getElementById('loopCheck').checked, 
+                    target_id: document.getElementById('userTag').value, 
+                    typing: document.getElementById('typeCheck').checked
+                })
+            });
+
+            if(res.ok) location.reload();
+            else alert("Failed to initiate cloud process.");
+        }
+
+        async function stop() { 
+            await fetch('/stop_cloud', {method:'POST'}); 
+            location.reload(); 
+        }
+
+        async function logout() { 
+            await fetch('/logout_api', {method:'POST'}); 
+            window.location.href='/'; 
+        }
+
+        // Timer uptime
+        setInterval(() => { 
+            if(startTime) { 
+                const d = Math.floor((Date.now() - startTime)/1000); 
+                if(d >= 0) {
+                    document.getElementById('uptime').innerText = new Date(d*1000).toISOString().substr(11,8); 
+                }
+            } 
+        }, 1000);
+
+        window.onload = sync;
+    </script>
+</body>
+</html>
