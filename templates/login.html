@@ -39,7 +39,7 @@
         }
         .btn-access:hover { background: #000; color: var(--accent); }
 
-        .msg-console { height: 35px; font-size: 10px; color: var(--text-dim); margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .msg-console { height: 35px; font-size: 10px; color: var(--text-dim); margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; padding-top: 10px; }
 
         .nav-link { margin-top: 20px; font-size: 9px; color: #333; cursor: pointer; text-decoration: none; display: block; letter-spacing: 1px; }
         .nav-link:hover { color: var(--text-dim); }
@@ -55,6 +55,8 @@
         <input type="password" id="p" placeholder="Password">
 
         <button class="btn-access" onclick="handleLogin()">Login</button>
+        
+        <div id="msg" class="msg-console"></div>
 
         <a href="/register_page" class="nav-link">NO ACCOUNT? CREATE</a>
     </div>
@@ -63,13 +65,15 @@
         async function handleLogin() {
             const u = document.getElementById('u').value.trim();
             const p = document.getElementById('p').value.trim();
+            const msg = document.getElementById('msg');
 
             if (!u || !p) {
-                document.getElementById('msg').innerText = "DATA_REQUIRED";
+                msg.innerText = "DATA_REQUIRED";
                 return;
             }
 
             try {
+                // Endpoint compatibil cu Render și Neon.tech
                 const res = await fetch('/login_api', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -79,20 +83,18 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    // Salvăm datele local pentru persistență vizuală și intrăm în sistem
                     localStorage.setItem('v_u', u);
                     localStorage.setItem('v_p', p);
                     window.location.href = "/autotyper";
                 } else {
-                    document.getElementById('msg').style.color = 'var(--err)';
-                    document.getElementById('msg').innerText = data.error || "INVALID_CREDENTIALS";
+                    msg.style.color = 'var(--err)';
+                    msg.innerText = data.error || "INVALID_CREDENTIALS";
                 }
             } catch(e) {
-                document.getElementById('msg').innerText = "CONNECTION_ERROR";
+                msg.innerText = "CONNECTION_ERROR";
             }
         }
 
-        // Matrix Effect
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
