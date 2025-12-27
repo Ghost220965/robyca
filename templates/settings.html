@@ -64,6 +64,7 @@
         // Verificăm sesiunea și încărcăm datele existente
         async function load() {
             try {
+                // Folosim rute relative pentru a fi compatibile cu orice domeniu Render
                 const res = await fetch('/get_autotyper');
                 if (!res.ok) { window.location.href = '/'; return; }
                 const d = await res.json();
@@ -116,6 +117,7 @@
         // Helper pentru trimiterea datelor la server
         async function syncToCloud() {
             try {
+                // Trimiterea datelor către backend-ul Flask pe Render
                 const res = await fetch('/save_autotyper', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
