@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Satan | Console</title>
+    <title>Satan</title>
     <style>
         :root { --accent: #eeeeee; --bg: #000000; --panel: #030303; --border: #1a1a1a; --text-dim: #555555; }
         * { box-sizing: border-box; font-family: 'JetBrains Mono', monospace; transition: all 0.2s ease; }
@@ -55,6 +55,7 @@
     </main>
 
     <script>
+        // Preluăm token-urile salvate anterior în Config
         let tks = JSON.parse(localStorage.getItem('v_tks') || "[]");
         let currentMode = 'normal';
         let msgQueue = [];
@@ -99,14 +100,20 @@
             const delayTime = parseInt(document.getElementById('delay').value) || 1500;
 
             try {
+                // Trimite mesajul prin backend-ul Flask pe Render
                 await fetch('/send', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ token: task.token, channel_id: task.channel, content: task.payload })
+                    body: JSON.stringify({ 
+                        token: task.token, 
+                        channel_id: task.channel, 
+                        content: task.payload 
+                    })
                 });
-            } catch(e) {}
+            } catch(e) { console.error("Send failed"); }
 
             msgQueue.shift();
+            // Implementăm delay-ul dorit între mesaje
             setTimeout(processQueue, delayTime);
         }
 
