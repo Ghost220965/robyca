@@ -4,19 +4,23 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-# --- CONFIGURARE BAZĂ DE DATE ---
-# Folosim baza ta de date MySQL de pe PythonAnywhere
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://robycaaaa:591Fxvg7t@robycaaaa.mysql.pythonanywhere-services.com/robycaaaa$default'
+# --- CONFIGURARE BAZĂ DE DATE (NEON.TECH) ---
+# Am înlocuit link-ul de MySQL cu cel de PostgreSQL de la Neon
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_boMmapeV25cy@ep-sparkling-hill-a4mf9956-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_recycle': 280, 'pool_pre_ping': True}
 
 db = SQLAlchemy(app)
 
-# Stocare în RAM pentru sesiuni și control procese (izolate per IP)
-active_sessions = {}  # { ip: user_id }
-running_processes = {} # { user_id: status_boolean }
+# --- CREARE AUTOMATĂ TABELE ---
+# Această secțiune verifică și creează tabelele pe Neon la prima pornire
+with app.app_context():
+    db.create_all()
 
-# --- MODELE (Tabele SQL) ---
+# Stocare în RAM pentru sesiuni și control procese
+active_sessions = {}  
+running_processes = {} 
+
+# --- MODELE (Rămân neschimbate) ---
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -43,17 +47,18 @@ class AutotyperState(db.Model):
     is_typing = db.Column(db.Boolean, default=False)
     start_time = db.Column(db.Float)
 
-# --- HELPERS ---
+# --- HELPERS (MODIFICAT PENTRU RENDER) ---
 def get_client_ip():
-    # Detectează IP-ul real pe PythonAnywhere
-    f = request.headers.get('X-Forwarded-For')
-    return f.split(',')[0].strip() if f else request.remote_addr
+    # Pe Render, IP-ul real se ia din X-Forwarded-For
+    x_forwarded = request.headers.get('X-Forwarded-For')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.remote_addr
 
 def get_current_user_id():
     return active_sessions.get(get_client_ip())
 
 def cloud_worker(user_id, token, channel_id, delay, messages, is_loop, target_id, is_typing_enabled):
-    """Funcție care rulează în fundal pentru a trimite mesaje pe Discord"""
     with app.app_context():
         while True:
             if user_id not in running_processes or not running_processes[user_id]:
@@ -78,7 +83,7 @@ def cloud_worker(user_id, token, channel_id, delay, messages, is_loop, target_id
                 running_processes[user_id] = False
                 break
 
-# --- RUTE PAGINI ---
+# --- RUTE PAGINI (Rămân la fel) ---
 @app.route('/')
 def login_page():
     if get_current_user_id(): return redirect(url_for('autotyper'))
@@ -109,7 +114,7 @@ def settings():
     if not get_current_user_id(): return redirect(url_for('login_page'))
     return render_template('settings.html')
 
-# --- API AUTENTIFICARE ---
+# --- API (Rămân la fel) ---
 @app.route('/login_api', methods=['POST'])
 def login_api():
     data = request.json
@@ -136,7 +141,6 @@ def logout_api():
     if ip in active_sessions: del active_sessions[ip]
     return jsonify({'success': True})
 
-# --- API TOKENI (Config) ---
 @app.route('/validate_token', methods=['POST'])
 def validate_token():
     tk = request.json.get('token')
@@ -173,7 +177,6 @@ def delete_token():
         db.session.commit()
     return jsonify({'success': True})
 
-# --- API CONTROL AUTOTYPER ---
 @app.route('/get_autotyper')
 def get_autotyper():
     u_id = get_current_user_id()
@@ -238,7 +241,6 @@ def stop_cloud():
 
 @app.route('/send', methods=['POST'])
 def send_message():
-    """Folosit de pagina Console pentru mesaje individuale"""
     if not get_current_user_id(): return jsonify({'error': 'Unauthorized'}), 401
     data = request.json
     try:
@@ -259,5 +261,4 @@ def shutdown_session(exception=None):
     db.session.remove()
 
 if __name__ == '__main__':
-    # Această parte rulează doar local; pe PythonAnywhere este ignorată.
     app.run(debug=True)
