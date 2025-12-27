@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Satan | Config</title>
+    <style>
+        :root { --accent: #eee; --bg: #000; --panel: #000; --border: #222; --text-dim: #aaa; }
+        * { box-sizing: border-box; font-family: 'JetBrains Mono', monospace; }
+        body { background: var(--bg); color: #eee; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 260px; border-right: 1px solid var(--border); padding: 50px 30px; display: flex; flex-direction: column; }
+        .logo { font-size: 20px; font-weight: 900; letter-spacing: 12px; text-align: center; margin-bottom: 60px; border-bottom: 1px solid var(--border); padding-bottom: 15px; }
+        .nav-link { color: var(--text-dim); text-decoration: none; padding: 12px 0; font-size: 10px; text-transform: uppercase; letter-spacing: 3px; border-bottom: 1px solid transparent; }
+        .nav-link.active { color: #eee; border-bottom-color: #eee; }
+        .main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; }
+        .module-card { width: 100%; max-width: 480px; padding: 50px; border: 1px solid var(--border); }
+        h2 { text-align: center; letter-spacing: 8px; font-size: 13px; text-transform: uppercase; font-weight: 300; margin-bottom: 40px; }
+        input { width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border); color: #eee; padding: 15px 0; margin-bottom: 20px; outline: none; }
+        .btn-sync { width: 100%; background: #eee; color: #000; padding: 18px; cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 4px; border: none; }
+        .token-item { padding: 15px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 11px; }
+        .wipe-btn { color: #555; cursor: pointer; border: none; background: none; font-size: 9px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">SATAN</div>
+        <a href="/config" class="nav-link active">Config</a>
+        <a href="/console" class="nav-link">Console</a>
+        <a href="/autotyper" class="nav-link">Autotyper</a>
+    </aside>
+    <main class="main">
+        <div class="module-card">
+            <h2>Config</h2>
+            <input type="text" id="alias" placeholder="Username">
+            <input type="password" id="tk" placeholder="Token">
+            <button class="btn-sync" onclick="add()">Add Token</button>
+            <div id="tokenTable" style="margin-top: 30px;"></div>
+        </div>
+    </main>
+    <script>
+        async function load() {
+            const res = await fetch('/get_tokens');
+            const tks = await res.json();
+            localStorage.setItem('v_tks', JSON.stringify(tks));
+            document.getElementById('tokenTable').innerHTML = tks.map(t => `
+                <div class="token-item">
+                    <span>${t.name.toUpperCase()}</span>
+                    <button class="wipe-btn" onclick="del('${t.name}')">Delete</button>
+                </div>`).join('');
+        }
+        async function add() {
+            const val = document.getElementById('tk').value;
+            const alias = document.getElementById('alias').value;
+            const check = await fetch('/validate_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token: val}) });
+            const d = await check.json();
+            if(d.valid) {
+                await fetch('/save_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: alias || d.user, val: val}) });
+                load();
+            } else alert("Invalid Token");
+        }
+        async function del(n) {
+            await fetch('/delete_token', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name: n}) });
+            load();
+        }
+        window.onload = load;
+    </script>
+</body>
+</html>
