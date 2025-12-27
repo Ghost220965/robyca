@@ -1,5 +1,5 @@
 flask
 flask-sqlalchemy
-mysql-connector-python
 requests
 gunicorn
+psycopg2-binary
