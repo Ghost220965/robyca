@@ -69,12 +69,10 @@
 
         async function sync() {
             try {
-                // Preluam token-urile din DB pentru utilizatorul logat
                 const rTk = await fetch('/get_tokens'); 
                 tks = await rTk.json();
                 document.getElementById('selTk').innerHTML = tks.map((t,i)=>`<option value="${i}">${t.name.toUpperCase()}</option>`).join('');
                 
-                // Preluam starea autotyper-ului
                 const rCf = await fetch('/get_autotyper'); 
                 const s = await rCf.json();
                 if(s) {
@@ -90,9 +88,7 @@
                         uiRun(true); 
                     }
                 }
-            } catch(e) {
-                console.error("Sync error:", e);
-            }
+            } catch(e) { console.error("Sync error:", e); }
         }
 
         function setM(m) {
@@ -114,14 +110,13 @@
             const txtShift = document.getElementById('msgShift').value;
             const activeTxt = mode === 'normal' ? txtNormal : txtShift;
             
-            // Logica de split mesaje
             const msgs = mode === 'normal' 
                 ? activeTxt.split("\n").filter(p=>p.trim().length>0) 
                 : activeTxt.split(/\n\s*\n/).filter(p=>p.trim().length>0);
 
             if(msgs.length === 0) return alert("Payload empty");
 
-            // Salvam starea inainte de pornire
+            // Salvăm configurația în Neon.tech
             await fetch('/save_autotyper', { 
                 method:'POST', 
                 headers:{'Content-Type':'application/json'}, 
@@ -136,10 +131,10 @@
                 })
             });
 
-            // Pornim worker-ul in Cloud
             const tkIndex = document.getElementById('selTk').value;
             if(!tks[tkIndex]) return alert("No Node selected");
 
+            // Pornim procesul de fundal (threading) pe Render
             const res = await fetch('/start_cloud', { 
                 method:'POST', 
                 headers:{'Content-Type':'application/json'}, 
@@ -168,7 +163,6 @@
             window.location.href='/'; 
         }
 
-        // Timer uptime
         setInterval(() => { 
             if(startTime) { 
                 const d = Math.floor((Date.now() - startTime)/1000); 
